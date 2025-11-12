@@ -1,1 +1,101 @@
-# vulnerable_sql_injection
+# Vulnerable SQL Injection Demo
+
+⚠️ **SECURITY WARNING: This code contains intentional SQL injection vulnerabilities for educational and testing purposes only. DO NOT use this in production environments.**
+
+## Overview
+
+This repository contains demonstration FastAPI applications with intentional SQL injection vulnerabilities in the `/login` endpoint. The purpose is to demonstrate how SQL injection attacks work and to provide a safe environment for security testing and education.
+
+## Available Applications
+
+### Simple Version (`simple_app.py`)
+- **Minimal code** - Only contains the vulnerable `/login` endpoint
+- **Easy to understand** - Focused demonstration of SQL injection
+- **Quick setup** - Single file with minimal dependencies
+
+### Full Version (`main.py`)
+- **Complete application** - Includes additional features and testing
+- **Comprehensive testing** - Unit tests and Docker support
+- **Production-like structure** - Better for understanding real-world scenarios
+
+## Features
+
+- FastAPI web application with SQL injection vulnerability
+- SQLite database with sample user data
+- Single vulnerable `/login` endpoint
+- Clear documentation of the security vulnerability
+
+## Installation
+
+### Simple Version (Quick Start)
+
+1. Install minimal dependencies:
+```bash
+pip install -r simple_requirements.txt
+```
+
+2. Run the simple application:
+```bash
+python simple_app.py
+```
+
+3. Access the application at: `http://localhost:8001`
+
+### Full Version (Complete Setup)
+
+#### Option 1: Local Installation
+
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+2. Run the application:
+```bash
+python main.py
+```
+
+3. Access the application at: `http://localhost:8000`
+
+#### Option 2: Docker Installation
+
+1. Build the Docker image:
+```bash
+docker build -t vulnerable-sql-injection .
+```
+
+2. Run the container:
+```bash
+docker run -p 8000:8000 vulnerable-sql-injection
+```
+
+3. Access the application at: `http://localhost:8000`
+
+#### Option 3: Docker Compose (Recommended)
+
+1. Run with Docker Compose:
+```bash
+docker-compose up
+```
+
+2. Access the application at: `http://localhost:8000`
+
+## Vulnerable Endpoint
+
+### POST /login
+- **Parameters**: `username`, `password`
+- **Vulnerability**: Direct string concatenation in SQL query
+- **Example Attack Payloads**:
+  - Username: `admin' OR '1'='1' --`
+  - Username: `' OR 1=1 --`
+  - Username: `admin'; DROP TABLE users; --`
+
+## Security Notice
+
+This application is intentionally vulnerable and should only be used for:
+- Security education and training
+- Penetration testing practice
+- Understanding SQL injection attacks
+- Learning secure coding practices
+
+**NEVER deploy this code in production or expose it to the internet.**
