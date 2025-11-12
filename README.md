@@ -90,6 +90,50 @@ docker-compose up
   - Username: `' OR 1=1 --`
   - Username: `admin'; DROP TABLE users; --`
 
+## Testing
+
+### Unit Tests
+
+This repository includes comprehensive unit tests to verify the SQL injection vulnerability and test application functionality.
+
+#### Vulnerability Detection Tests
+
+Run the vulnerability detection tests to verify the current security state:
+
+```bash
+# Run vulnerability detection tests
+python3 vulnerability_test.py
+
+# Or run with pytest
+python3 -m pytest vulnerability_test.py -v
+```
+
+**Expected Output (Current Vulnerable State):**
+- ✅ `test_valid_login` - PASS (normal functionality)
+- ✅ `test_sql_injection_vulnerability` - PASS (vulnerability confirmed)
+
+**After Security Fixes:**
+- ✅ `test_valid_login` - PASS (no regression)
+- ❌ `test_sql_injection_vulnerability` - FAIL (vulnerability fixed)
+
+#### Comprehensive Test Suite
+
+Run the full test suite for complete testing:
+
+```bash
+# Run all tests
+python3 -m pytest test_main.py -v
+
+# Run specific test file
+python3 test_main.py
+```
+
+### Test Files
+
+- `vulnerability_test.py` - Security vulnerability detection tests
+- `test_main.py` - Comprehensive test suite
+- `TESTING_GUIDE.md` - Detailed testing instructions
+
 ## Security Notice
 
 This application is intentionally vulnerable and should only be used for:
