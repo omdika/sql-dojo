@@ -6,17 +6,9 @@
 
 This repository contains demonstration FastAPI applications with intentional SQL injection vulnerabilities in the `/login` endpoint. The purpose is to demonstrate how SQL injection attacks work and to provide a safe environment for security testing and education.
 
-## Available Applications
+## Application Overview
 
-### Simple Version (`simple_app.py`)
-- **Minimal code** - Only contains the vulnerable `/login` endpoint
-- **Easy to understand** - Focused demonstration of SQL injection
-- **Quick setup** - Single file with minimal dependencies
-
-### Full Version (`main.py`)
-- **Complete application** - Includes additional features and testing
-- **Comprehensive testing** - Unit tests and Docker support
-- **Production-like structure** - Better for understanding real-world scenarios
+This repository contains a FastAPI application (`main.py`) with intentional SQL injection vulnerabilities in the `/login` endpoint. The application is designed for security testing and education purposes.
 
 ## Features
 
@@ -26,22 +18,6 @@ This repository contains demonstration FastAPI applications with intentional SQL
 - Clear documentation of the security vulnerability
 
 ## Installation
-
-### Simple Version (Quick Start)
-
-1. Install minimal dependencies:
-```bash
-pip install -r simple_requirements.txt
-```
-
-2. Run the simple application:
-```bash
-python simple_app.py
-```
-
-3. Access the application at: `http://localhost:8001`
-
-### Full Version (Complete Setup)
 
 #### Option 1: Local Installation
 
