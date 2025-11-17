@@ -1,4 +1,3 @@
-
 name: Run Pytest
 
 on:
@@ -12,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-      - uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -26,5 +25,4 @@ jobs:
           pip install pytest
 
       - name: Run vulnerability tests
-        run: |
-          pytest -v vulnerability_test.py
+        run: pytest -v vulnerability_test.py
