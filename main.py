@@ -37,34 +37,44 @@ async def root():
 
 def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     """
-    VULNERABLE LOGIN FUNCTION - Contains SQL Injection Vulnerability
+    FIXED LOGIN FUNCTION - SQL Injection Mitigated
 
-    This function demonstrates a classic SQL injection vulnerability.
-    The username and password parameters are directly concatenated into the SQL query
-    without any parameterization or input validation.
-
-    Example attack payloads:
-    - Username: admin' OR '1'='1' --
-    - Username: ' OR 1=1 --
-    - Username: admin'; DROP TABLE users; --
+    This function now uses parameterized queries to avoid SQL injection.
+    It also performs basic input validation to reject empty or overly long inputs.
     """
 
-    # VULNERABLE CODE: Direct string concatenation - SQL Injection vulnerability
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+    # Basic input validation
+    if not isinstance(username, str) or not isinstance(password, str):
+        return None
+
+    username = username.strip()
+    password = password.strip()
+
+    if not username or not password:
+        return None
+
+    # Enforce reasonable maximum lengths to mitigate certain injection vectors
+    MAX_LEN = 150
+    if len(username) > MAX_LEN or len(password) > MAX_LEN:
+        return None
+
+    query = "SELECT id, username FROM users WHERE username = ? AND password = ?"
 
     try:
-        conn = sqlite3.connect(db_file)
-        cursor = conn.cursor()
-        cursor.execute(query)
-        user = cursor.fetchone()
-        conn.close()
-        return user
-    except Exception as e:
-        raise e
+        # Use a context manager to ensure the connection is closed properly
+        with sqlite3.connect(db_file) as conn:
+            cursor = conn.cursor()
+            # Parameterized query prevents SQL injection
+            cursor.execute(query, (username, password))
+            user = cursor.fetchone()
+            return user
+    except Exception:
+        # Do not leak internal error details
+        return None
 
 @app.post("/login")
 async def login(username: str, password: str):
-    """Vulnerable login endpoint that uses the vulnerable query function"""
+    """Secure login endpoint that uses the fixed query function"""
     try:
         user = vulnerable_login_query(username, password)
 
@@ -75,21 +85,19 @@ async def login(username: str, password: str):
                 "user": {
                     "id": user[0],
                     "username": user[1]
-                },
-                "warning": "This endpoint contains SQL injection vulnerability - for educational purposes only"
+                }
             }
         else:
             return {
                 "status": "error",
-                "message": "Invalid credentials",
-                "warning": "This endpoint contains SQL injection vulnerability - for educational purposes only"
+                "message": "Invalid credentials"
             }
 
-    except Exception as e:
+    except Exception:
+        # Generic error message to avoid leaking implementation details
         return {
             "status": "error",
-            "message": f"Database error: {str(e)}",
-            "warning": "This endpoint contains SQL injection vulnerability - for educational purposes only"
+            "message": "Internal server error"
         }
 
 if __name__ == "__main__":
