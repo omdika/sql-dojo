@@ -50,6 +50,7 @@ def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     """
 
     # VULNERABLE CODE: Direct string concatenation - SQL Injection vulnerability
+    # PLEXICUS COVULOR: disable bandit=B608
     query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
 
     try:
