@@ -2,7 +2,7 @@ services:
   vulnerable-sql-injection:
     build: .
     ports:
-      - "8000:8000"
+      - "${ALLOWED_BIND_ADDRESS:-127.0.0.1}:8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
@@ -17,3 +17,4 @@ services:
     labels:
       - "description=Vulnerable SQL Injection Demo Application"
       - "security.warning=This container contains intentional SQL injection vulnerabilities for educational purposes only"
+
