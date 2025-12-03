@@ -1,0 +1,2 @@
+Fixes SQL injection in vulnerable_login_query by replacing raw string concatenation with a parameterized query.
+Only main.py is modified: the query string and the cursor.execute call are updated to use SQLite parameter binding.
