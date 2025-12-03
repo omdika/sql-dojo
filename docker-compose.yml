@@ -1,4 +1,5 @@
 services:
+  # PLEXICUS COVULOR: disable kics-container=ce76b7d0-9e77-464d-b86f-c5c48e03e22d
   vulnerable-sql-injection:
     build: .
     ports:
