@@ -54,6 +54,7 @@ def test_invalid_login():
         response = client.post("/login", params={"username": "admin", "password": "wrongpassword"})
         assert response.status_code == 200
         data = response.json()
+        # After security fix, SQL injection should not authenticate
         assert data["status"] == "error"
         assert data["message"] == "Invalid credentials"
         assert "warning" in data
@@ -101,16 +102,15 @@ def test_sql_injection_function_direct():
         assert user is not None
         assert user[1] == "admin"
 
-        # Test SQL injection
+        # Test SQL injection - should NOT succeed after fix
         user = vulnerable_login_query("admin' OR '1'='1' --", "anything", TEST_DB_FILE)
-        assert user is not None
-        assert user[1] == "admin"
+        assert user is None
 
-        # Test another SQL injection
+        # Test another SQL injection - should NOT succeed after fix
         user = vulnerable_login_query("' OR 1=1 --", "anything", TEST_DB_FILE)
-        assert user is not None
+        assert user is None
 
-        print("SQL injection vulnerability confirmed in function level")
+        print("SQL injection tests now fail as expected at function level (secure)")
     finally:
         teardown_test_db()
 
@@ -156,15 +156,13 @@ def test_normal_vs_injected_login_comparison():
         })
         data_injected = response_injected.json()
 
-        # The vulnerability is demonstrated by:
-        # - Normal login with wrong password fails
-        # - SQL injection with wrong password succeeds
+        # After security fix, both normal wrong-password login and injected login should fail
         assert data_normal["status"] == "error"
-        assert data_injected["status"] == "success"
+        assert data_injected["status"] == "error"
 
         print(f"Normal login (wrong password): {data_normal['status']}")
         print(f"SQL injection login: {data_injected['status']}")
-        print("VULNERABILITY CONFIRMED: SQL injection bypasses authentication")
+        print("SECURE: SQL injection no longer bypasses authentication")
     finally:
         teardown_test_db()
 
