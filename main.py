@@ -37,29 +37,34 @@ async def root():
 
 def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     """
-    VULNERABLE LOGIN FUNCTION - Contains SQL Injection Vulnerability
+    SECURED LOGIN FUNCTION - Prevents SQL Injection
 
-    This function demonstrates a classic SQL injection vulnerability.
-    The username and password parameters are directly concatenated into the SQL query
-    without any parameterization or input validation.
-
-    Example attack payloads:
-    - Username: admin' OR '1'='1' --
-    - Username: ' OR 1=1 --
-    - Username: admin'; DROP TABLE users; --
+    This function now uses parameterized SQL queries (placeholders) and basic
+    input validation to avoid SQL injection vulnerabilities. It preserves the
+    original behavior (returning the matched user row) but ensures that user
+    input is never concatenated directly into SQL statements.
     """
 
-    # VULNERABLE CODE: Direct string concatenation - SQL Injection vulnerability
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+    # Basic input validation: ensure inputs are strings and of reasonable length
+    if not isinstance(username, str) or not isinstance(password, str):
+        return None
+
+    # Enforce length limits to mitigate excessive input abuse
+    if len(username) > 256 or len(password) > 256:
+        return None
+
+    # Use parameterized queries to prevent SQL injection
+    query = "SELECT * FROM users WHERE username = ? AND password = ?"
 
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
-        cursor.execute(query)
+        cursor.execute(query, (username, password))
         user = cursor.fetchone()
         conn.close()
         return user
     except Exception as e:
+        # Do not leak internal error details; re-raise for the caller to handle
         raise e
 
 @app.post("/login")
