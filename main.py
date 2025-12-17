@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 import sqlite3
 import os
 
-app = FastAPI(title="Vulnerable SQL Injection Demo")
+app = FastAPI(title="Secure Login Demo")
 
 # Database configuration
 DB_FILE = 'users.db'
@@ -33,40 +33,41 @@ async def startup_event():
 
 @app.get("/")
 async def root():
-    return {"message": "Vulnerable SQL Injection Demo - Visit /login endpoint"}
+    return {"message": "Secure Login Demo - Use /login to authenticate"}
 
-def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
+def secure_login_query(username: str, password: str, db_file=DB_FILE):
     """
-    VULNERABLE LOGIN FUNCTION - Contains SQL Injection Vulnerability
+    SECURE LOGIN FUNCTION - Uses parameterized queries to prevent SQL Injection
 
-    This function demonstrates a classic SQL injection vulnerability.
-    The username and password parameters are directly concatenated into the SQL query
-    without any parameterization or input validation.
-
-    Example attack payloads:
-    - Username: admin' OR '1'='1' --
-    - Username: ' OR 1=1 --
-    - Username: admin'; DROP TABLE users; --
+    This function prevents SQL injection by using parameterized queries provided by
+    the sqlite3 library. User input is never concatenated directly into the SQL string.
     """
 
-    # VULNERABLE CODE: Direct string concatenation - SQL Injection vulnerability
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+    query = "SELECT id, username FROM users WHERE username = ? AND password = ?"
 
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
-        cursor.execute(query)
+        cursor.execute(query, (username, password))
         user = cursor.fetchone()
         conn.close()
         return user
     except Exception as e:
+        # Re-raise exception for the caller to handle
         raise e
 
 @app.post("/login")
 async def login(username: str, password: str):
-    """Vulnerable login endpoint that uses the vulnerable query function"""
+    """Secure login endpoint that uses parameterized queries"""
+    # Basic input validation to avoid overly long inputs
+    if not isinstance(username, str) or not isinstance(password, str):
+        return {"status": "error", "message": "Invalid input types"}
+
+    if len(username) > 150 or len(password) > 150:
+        return {"status": "error", "message": "Input too long"}
+
     try:
-        user = vulnerable_login_query(username, password)
+        user = secure_login_query(username, password)
 
         if user:
             return {
@@ -75,21 +76,18 @@ async def login(username: str, password: str):
                 "user": {
                     "id": user[0],
                     "username": user[1]
-                },
-                "warning": "This endpoint contains SQL injection vulnerability - for educational purposes only"
+                }
             }
         else:
             return {
                 "status": "error",
-                "message": "Invalid credentials",
-                "warning": "This endpoint contains SQL injection vulnerability - for educational purposes only"
+                "message": "Invalid credentials"
             }
 
     except Exception as e:
         return {
             "status": "error",
-            "message": f"Database error: {str(e)}",
-            "warning": "This endpoint contains SQL injection vulnerability - for educational purposes only"
+            "message": f"Database error: {str(e)}"
         }
 
 if __name__ == "__main__":

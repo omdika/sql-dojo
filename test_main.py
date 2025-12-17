@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 import sqlite3
 import os
-from main import app, init_db, vulnerable_login_query
+from main import app, init_db, secure_login_query
 
 # Test client for FastAPI
 client = TestClient(app)
@@ -30,7 +30,7 @@ def test_root_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert "message" in data
-    assert "Vulnerable SQL Injection Demo" in data["message"]
+    assert "Secure Login Demo" in data["message"]
 
 def test_valid_login():
     """Test normal login with correct credentials"""
@@ -43,7 +43,6 @@ def test_valid_login():
         assert data["message"] == "Login successful"
         assert "user" in data
         assert data["user"]["username"] == "admin"
-        assert "warning" in data
     finally:
         teardown_test_db()
 
@@ -56,12 +55,11 @@ def test_invalid_login():
         data = response.json()
         assert data["status"] == "error"
         assert data["message"] == "Invalid credentials"
-        assert "warning" in data
     finally:
         teardown_test_db()
 
 def test_sql_injection_bypass_authentication():
-    """Test SQL injection that bypasses authentication"""
+    """Ensure SQL injection attempts cannot bypass authentication"""
     setup_test_db()
     try:
         # Classic SQL injection payload
@@ -71,14 +69,14 @@ def test_sql_injection_bypass_authentication():
         })
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
-        assert data["message"] == "Login successful"
-        # This demonstrates the vulnerability - login succeeds without valid password
+        # With secure parameterized queries, injection should NOT succeed
+        assert data["status"] == "error"
+        assert data["message"] == "Invalid credentials"
     finally:
         teardown_test_db()
 
 def test_sql_injection_always_true():
-    """Test SQL injection with always true condition"""
+    """Ensure always-true SQL injection attempts fail"""
     setup_test_db()
     try:
         response = client.post("/login", params={
@@ -87,35 +85,33 @@ def test_sql_injection_always_true():
         })
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
-        assert data["message"] == "Login successful"
+        assert data["status"] == "error"
+        assert data["message"] == "Invalid credentials"
     finally:
         teardown_test_db()
 
 def test_sql_injection_function_direct():
-    """Test SQL injection directly on the vulnerable function"""
+    """Test that the secure function resists SQL injection directly"""
     setup_test_db()
     try:
         # Test normal login
-        user = vulnerable_login_query("admin", "password123", TEST_DB_FILE)
+        user = secure_login_query("admin", "password123", TEST_DB_FILE)
         assert user is not None
         assert user[1] == "admin"
 
-        # Test SQL injection
-        user = vulnerable_login_query("admin' OR '1'='1' --", "anything", TEST_DB_FILE)
-        assert user is not None
-        assert user[1] == "admin"
+        # Test SQL injection - should not return a user
+        user = secure_login_query("admin' OR '1'='1' --", "anything", TEST_DB_FILE)
+        assert user is None
 
         # Test another SQL injection
-        user = vulnerable_login_query("' OR 1=1 --", "anything", TEST_DB_FILE)
-        assert user is not None
+        user = secure_login_query("' OR 1=1 --", "anything", TEST_DB_FILE)
+        assert user is None
 
-        print("SQL injection vulnerability confirmed in function level")
     finally:
         teardown_test_db()
 
 def test_multiple_sql_injection_payloads():
-    """Test various SQL injection payloads"""
+    """Test various SQL injection payloads do not authenticate"""
     setup_test_db()
     try:
         payloads = [
@@ -133,13 +129,12 @@ def test_multiple_sql_injection_payloads():
             })
             assert response.status_code == 200
             data = response.json()
-            print(f"Payload: {payload} -> Status: {data['status']}")
-            # All these should demonstrate the vulnerability
+            assert data["status"] == "error"
     finally:
         teardown_test_db()
 
 def test_normal_vs_injected_login_comparison():
-    """Compare normal login vs SQL injection login"""
+    """Compare normal login vs SQL injection login - injected should fail"""
     setup_test_db()
     try:
         # Normal login with wrong password
@@ -156,20 +151,15 @@ def test_normal_vs_injected_login_comparison():
         })
         data_injected = response_injected.json()
 
-        # The vulnerability is demonstrated by:
-        # - Normal login with wrong password fails
-        # - SQL injection with wrong password succeeds
+        # Both should fail with secure implementation
         assert data_normal["status"] == "error"
-        assert data_injected["status"] == "success"
+        assert data_injected["status"] == "error"
 
-        print(f"Normal login (wrong password): {data_normal['status']}")
-        print(f"SQL injection login: {data_injected['status']}")
-        print("VULNERABILITY CONFIRMED: SQL injection bypasses authentication")
     finally:
         teardown_test_db()
 
 def test_sql_injection_destructive():
-    """Test destructive SQL injection (DROP TABLE)"""
+    """Test destructive SQL injection (DROP TABLE) should not be executed"""
     setup_test_db()
     try:
         # First verify the table exists
@@ -185,10 +175,17 @@ def test_sql_injection_destructive():
             "password": "anything"
         })
 
-        # Check response - this might cause an error but demonstrates the vulnerability
+        # With parameterized queries, this should not drop the table and authentication should fail
         assert response.status_code == 200
         data = response.json()
-        print(f"Destructive injection response: {data['status']}")
+        assert data["status"] == "error"
+
+        # Verify table still exists
+        conn = sqlite3.connect(TEST_DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        assert cursor.fetchone() is not None
+        conn.close()
 
     finally:
         teardown_test_db()
@@ -202,4 +199,4 @@ if __name__ == "__main__":
     test_sql_injection_always_true()
     test_sql_injection_function_direct()
     test_normal_vs_injected_login_comparison()
-    print("\n✅ All tests passed! SQL injection vulnerability confirmed.")
+    print("\n✅ All tests passed! Secure implementation verified.")
