@@ -37,29 +37,38 @@ async def root():
 
 def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     """
-    VULNERABLE LOGIN FUNCTION - Contains SQL Injection Vulnerability
+    SECURE LOGIN FUNCTION - Parameterized Query to Prevent SQL INJECTION
 
-    This function demonstrates a classic SQL injection vulnerability.
-    The username and password parameters are directly concatenated into the SQL query
-    without any parameterization or input validation.
+    This function uses parameterized queries instead of directly concatenating
+    user input into SQL statements. Parameterized queries ensure that input is
+    treated as data, not executable SQL, which prevents SQL injection attacks.
 
-    Example attack payloads:
-    - Username: admin' OR '1'='1' --
-    - Username: ' OR 1=1 --
-    - Username: admin'; DROP TABLE users; --
+    Basic input validation is also applied: inputs are stripped and limited in length.
     """
 
-    # VULNERABLE CODE: Direct string concatenation - SQL Injection vulnerability
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+    # Basic input validation: enforce types, strip whitespace, and limit length
+    if not isinstance(username, str) or not isinstance(password, str):
+        return None
 
+    username = username.strip()
+    password = password.strip()
+
+    # Enforce reasonable length limits to avoid abuse (e.g., 256 chars)
+    MAX_LEN = 256
+    if len(username) == 0 or len(password) == 0 or len(username) > MAX_LEN or len(password) > MAX_LEN:
+        return None
+
+    # Use parameterized query to prevent SQL injection
+    query = "SELECT id, username, password FROM users WHERE username = ? AND password = ?"
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
-        cursor.execute(query)
+        cursor.execute(query, (username, password))
         user = cursor.fetchone()
         conn.close()
         return user
     except Exception as e:
+        # Re-raise the exception to be handled by the caller
         raise e
 
 @app.post("/login")
