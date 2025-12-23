@@ -49,13 +49,13 @@ def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     - Username: admin'; DROP TABLE users; --
     """
 
-    # VULNERABLE CODE: Direct string concatenation - SQL Injection vulnerability
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+    # FIXED CODE: Use parameterized queries to prevent SQL injection
+    query = "SELECT * FROM users WHERE username = ? AND password = ?"
 
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
-        cursor.execute(query)
+        cursor.execute(query, (username, password))
         user = cursor.fetchone()
         conn.close()
         return user
