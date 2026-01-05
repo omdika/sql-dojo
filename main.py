@@ -37,25 +37,20 @@ async def root():
 
 def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     """
-    VULNERABLE LOGIN FUNCTION - Contains SQL Injection Vulnerability
+    SECURE LOGIN FUNCTION - Uses parameterized queries to prevent SQL Injection
 
-    This function demonstrates a classic SQL injection vulnerability.
-    The username and password parameters are directly concatenated into the SQL query
-    without any parameterization or input validation.
-
-    Example attack payloads:
-    - Username: admin' OR '1'='1' --
-    - Username: ' OR 1=1 --
-    - Username: admin'; DROP TABLE users; --
+    The username and password parameters are passed as query parameters to the
+    database driver instead of being concatenated into the SQL string. This
+    prevents SQL injection attacks.
     """
 
-    # VULNERABLE CODE: Direct string concatenation - SQL Injection vulnerability
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+    # SECURE CODE: Use parameterized queries
+    query = "SELECT * FROM users WHERE username = ? AND password = ?"
 
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
-        cursor.execute(query)
+        cursor.execute(query, (username, password))
         user = cursor.fetchone()
         conn.close()
         return user
@@ -76,20 +71,20 @@ async def login(username: str, password: str):
                     "id": user[0],
                     "username": user[1]
                 },
-                "warning": "This endpoint contains SQL injection vulnerability - for educational purposes only"
+                        "note": "This endpoint has been secured against SQL injection"
             }
         else:
             return {
                 "status": "error",
                 "message": "Invalid credentials",
-                "warning": "This endpoint contains SQL injection vulnerability - for educational purposes only"
+                "note": "This endpoint has been secured against SQL injection"
             }
 
     except Exception as e:
         return {
             "status": "error",
             "message": f"Database error: {str(e)}",
-            "warning": "This endpoint contains SQL injection vulnerability - for educational purposes only"
+            "note": "This endpoint has been secured against SQL injection"
         }
 
 if __name__ == "__main__":
