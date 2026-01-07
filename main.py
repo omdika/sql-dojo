@@ -1,6 +1,14 @@
 from fastapi import FastAPI, HTTPException
 import sqlite3
 import os
+import bcrypt
+
+# Remediation summary:
+# 1) Fixes: SQL injection in vulnerable_login_query by replacing string
+#    concatenation with parameterized queries and adding password hashing.
+# 2) Changes: use sqlite3 parameter binding, store password hashes with bcrypt,
+#    and verify supplied password via bcrypt.checkpw.
+# 3) Files modified: main.py
 
 app = FastAPI(title="Vulnerable SQL Injection Demo")
 
@@ -19,10 +27,13 @@ def init_db(db_file=DB_FILE):
         )
     ''')
 
-    # Insert some test users
-    cursor.execute("INSERT OR IGNORE INTO users (username, password) VALUES ('admin', 'password123')")
-    cursor.execute("INSERT OR IGNORE INTO users (username, password) VALUES ('user1', 'secret456')")
-    cursor.execute("INSERT OR IGNORE INTO users (username, password) VALUES ('test', 'test789')")
+    # Insert some test users with hashed passwords
+    users = [
+        ('admin', bcrypt.hashpw(b'password123', bcrypt.gensalt()).decode()),
+        ('user1', bcrypt.hashpw(b'secret456', bcrypt.gensalt()).decode()),
+        ('test', bcrypt.hashpw(b'test789', bcrypt.gensalt()).decode()),
+    ]
+    cursor.executemany("INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)", users)
 
     conn.commit()
     conn.close()
@@ -49,16 +60,21 @@ def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     - Username: admin'; DROP TABLE users; --
     """
 
-    # VULNERABLE CODE: Direct string concatenation - SQL Injection vulnerability
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
-
+    # Secure: use parameterized query to fetch user by username and verify password hash
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
-        cursor.execute(query)
-        user = cursor.fetchone()
+        cursor.execute("SELECT id, username, password FROM users WHERE username = ?", (username,))
+        row = cursor.fetchone()
         conn.close()
-        return user
+        if not row:
+            return None
+        stored_hash = row[2]
+        # Verify provided password against stored bcrypt hash
+        if bcrypt.checkpw(password.encode(), stored_hash.encode()):
+            return row
+        else:
+            return None
     except Exception as e:
         raise e
 
@@ -95,3 +111,4 @@ async def login(username: str, password: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
