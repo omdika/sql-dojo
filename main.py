@@ -1,6 +1,9 @@
 from fastapi import FastAPI, HTTPException
 import sqlite3
 import os
+import hashlib
+import hmac
+import binascii
 
 app = FastAPI(title="Vulnerable SQL Injection Demo")
 
@@ -37,28 +40,53 @@ async def root():
 
 def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     """
-    VULNERABLE LOGIN FUNCTION - Contains SQL Injection Vulnerability
+    SECURE LOGIN FUNCTION - Parameterized queries and password hash verification
 
-    This function demonstrates a classic SQL injection vulnerability.
-    The username and password parameters are directly concatenated into the SQL query
-    without any parameterization or input validation.
-
-    Example attack payloads:
-    - Username: admin' OR '1'='1' --
-    - Username: ' OR 1=1 --
-    - Username: admin'; DROP TABLE users; --
+    This implementation avoids SQL injection by using parameterized queries and
+    verifies passwords using a PBKDF2-based hash format. For backward compatibility
+    a constant-time comparison against plaintext-stored passwords is performed as
+    a transitional fallback (migrate existing plaintext passwords to the hashed
+    format as soon as possible).
     """
-
-    # VULNERABLE CODE: Direct string concatenation - SQL Injection vulnerability
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
 
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
-        cursor.execute(query)
+        # Parameterized query to avoid SQL injection
+        cursor.execute("SELECT id, username, password FROM users WHERE username = ?", (username,))
         user = cursor.fetchone()
         conn.close()
-        return user
+
+        if not user:
+            return None
+
+        stored_password = user[2]
+
+        # Support hashed password format: "pbkdf2$<iterations>$<salt_hex>$<hash_hex>"
+        if isinstance(stored_password, str) and stored_password.startswith("pbkdf2$"):
+            try:
+                parts = stored_password.split("$")
+                iterations = int(parts[1])
+                salt = binascii.unhexlify(parts[2])
+                stored_key = binascii.unhexlify(parts[3])
+                derived_key = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, iterations)
+                if hmac.compare_digest(derived_key, stored_key):
+                    return user
+                else:
+                    return None
+            except Exception:
+                # If hash parsing/verifying fails, treat as authentication failure
+                return None
+        else:
+            # Transitional plaintext fallback (constant-time compare)
+            try:
+                if hmac.compare_digest(password.encode(), str(stored_password).encode()):
+                    return user
+                else:
+                    return None
+            except Exception:
+                return None
+
     except Exception as e:
         raise e
 
@@ -95,3 +123,4 @@ async def login(username: str, password: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
