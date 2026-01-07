@@ -35,6 +35,10 @@ async def startup_event():
 async def root():
     return {"message": "Vulnerable SQL Injection Demo - Visit /login endpoint"}
 
+# Pre-change analysis:
+# 1. Vulnerability: SQL injection via direct string interpolation of username/password into SQL.
+# 2. Change: Use parameterized queries with bound parameters (SQLite '?' placeholders) and pass params to cursor.execute.
+# 3. Files: main.py
 def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     """
     VULNERABLE LOGIN FUNCTION - Contains SQL Injection Vulnerability
@@ -49,13 +53,14 @@ def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     - Username: admin'; DROP TABLE users; --
     """
 
-    # VULNERABLE CODE: Direct string concatenation - SQL Injection vulnerability
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+    # Use parameterized query to prevent SQL injection
+    query = "SELECT * FROM users WHERE username = ? AND password = ?"
+    params = (username, password)
 
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
-        cursor.execute(query)
+        cursor.execute(query, params)
         user = cursor.fetchone()
         conn.close()
         return user
@@ -95,3 +100,4 @@ async def login(username: str, password: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
