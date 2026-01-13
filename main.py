@@ -49,13 +49,21 @@ def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     - Username: admin'; DROP TABLE users; --
     """
 
-    # VULNERABLE CODE: Direct string concatenation - SQL Injection vulnerability
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+    # SECURE CODE: Use parameterized (bound) query to prevent SQL injection.
+    # Also perform minimal allow-list validation on inputs (type and reasonable length).
+    # This replaces building SQL via string concatenation.
+    query = "SELECT * FROM users WHERE username = ? AND password = ?"
+
+    # Basic validation: ensure inputs are strings and within expected length limits.
+    if not isinstance(username, str) or not isinstance(password, str):
+        return None
+    if len(username) == 0 or len(password) == 0 or len(username) > 150 or len(password) > 150:
+        return None
 
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
-        cursor.execute(query)
+        cursor.execute(query, (username, password))
         user = cursor.fetchone()
         conn.close()
         return user
@@ -95,3 +103,4 @@ async def login(username: str, password: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
