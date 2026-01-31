@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 import sqlite3
 import os
+import re
 
 app = FastAPI(title="Vulnerable SQL Injection Demo")
 
@@ -49,13 +50,20 @@ def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     - Username: admin'; DROP TABLE users; --
     """
 
-    # VULNERABLE CODE: Direct string concatenation - SQL Injection vulnerability
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+    # FIX: Use parameterized query to avoid SQL injection and basic allow-list validation for username.
+    # Allow only alphanumeric usernames, underscores, hyphens, and dots; limit length to 150 characters.
+    if not isinstance(username, str) or not isinstance(password, str):
+        return None
+
+    if not re.match(r'^[A-Za-z0-9_.-]{1,150}$', username):
+        # Invalid username format; treat as authentication failure without leaking details.
+        return None
 
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
-        cursor.execute(query)
+        # Use parameterized query (sqlite3 uses ? placeholders) to bind user-supplied values safely.
+        cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
         user = cursor.fetchone()
         conn.close()
         return user
@@ -95,3 +103,4 @@ async def login(username: str, password: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
