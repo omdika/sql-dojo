@@ -55,7 +55,9 @@ def vulnerable_login_query(username: str, password: str, db_file=DB_FILE):
     try:
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
-        cursor.execute(query)
+        # Fix: use parameterized query with bound parameters to avoid SQL injection.
+        # This ensures user-supplied values are passed as data, not interpolated into the SQL string.
+        cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
         user = cursor.fetchone()
         conn.close()
         return user
@@ -95,3 +97,4 @@ async def login(username: str, password: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
